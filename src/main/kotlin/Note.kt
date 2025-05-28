@@ -1,4 +1,5 @@
 import android.graphics.Color
+import org.json.JSONException
 import org.json.JSONObject
 import java.util.UUID
 
@@ -11,30 +12,31 @@ data class Note(
     val title: String,
     val content: String,
     val color: Int = Color.WHITE,
-    val importance: Importance = Importance.NORMAL
+    val importance: Importance = Importance.NORMAL,
+    val selfDestructTime: Long? = null
 ) {
     companion object {
-        fun parse(json: JSONObject): Note? {
-            return try {
-                val uid = json.optString("uid", UUID.randomUUID().toString())
-                val title = json.getString("title")
-                val content = json.getString("content")
-                val color = json.optInt("color", Color.WHITE)
-                val importance = Importance.valueOf(json.optString("importance", Importance.NORMAL.name))
-                Note(uid, title, content, color, importance)
-            } catch (e: Exception) {
-                null
-            }
+        @Throws(JSONException::class)
+        fun parse(json: JSONObject): Note {
+            return Note(
+                uid = json.optString("uid", UUID.randomUUID().toString()),
+                title = json.getString("title"),
+                content = json.getString("content"),
+                color = json.optInt("color", Color.WHITE),
+                importance = json.optString("importance")?.let { Importance.valueOf(it) } 
+                    ?: Importance.NORMAL,
+                selfDestructTime = json.optLong("selfDestructTime").takeIf { it > 0 }
+            )
         }
     }
 
-    fun toJson(): JSONObject {
-        val json = JSONObject()
-        json.put("uid", uid)
-        json.put("title", title)
-        json.put("content", content)
-        if (color != Color.WHITE) json.put("color", color)
-        if (importance != Importance.NORMAL) json.put("importance", importance.name)
-        return json
-    }
+    val json: JSONObject
+        get() = JSONObject().apply {
+            put("uid", uid)
+            put("title", title)
+            put("content", content)
+            if (color != Color.WHITE) put("color", color)
+            if (importance != Importance.NORMAL) put("importance", importance.name)
+            selfDestructTime?.let { put("selfDestructTime", it) }
+        }
 }
